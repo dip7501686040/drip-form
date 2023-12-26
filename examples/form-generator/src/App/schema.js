@@ -66,7 +66,7 @@ export default {
           },
         ],
       },
-      fieldKey: 'a',
+      fieldKey: 'radio_lkXQ-Y',
     },
     {
       type: 'string',

@@ -29,6 +29,7 @@ const PropertyConfig = () => {
     uiSchema,
     uiComponents,
     fieldKey,
+    widthManagerContext,
   } = useRightSidebar()
   // 当前选中的组件
   const [themeAndType, setThemeAndType] = useRecoilState(curThemeAndTypeAtom)
@@ -37,7 +38,6 @@ const PropertyConfig = () => {
   //当前类型的样式配置schema
   const curTypePropertyConfig = useRecoilValue(curTypePropertyConfigSelector)
   const propertyConfigOptions = useRecoilValue(propertyConfigSelector)
-
   useEffect(() => {
     setThemeAndType(
       uiSchema.type ? getThemeAndType(uiSchema as UiSchema) : 'root'
@@ -124,7 +124,10 @@ const PropertyConfig = () => {
           formData.containerStyle.width =
             formData.containerStyle.width ||
             generatorContext.current?.get().uiSchema?.containerStyle?.width ||
-            (type != 'root' ? '100%' : 100)
+            (type != 'root' ? widthManagerContext.selectedWidth.label : 100)
+          if (widthManagerContext.selectedWidth.label !== '100%') {
+            widthManagerContext.setSelectedWidth({ width: 100, label: '100%' })
+          }
         }
         // 标题特殊处理
         if (key === 'title') {
@@ -151,6 +154,7 @@ const PropertyConfig = () => {
       uiSchema.footer,
       uiSchema?.showTitle,
       uiSchema.title,
+      widthManagerContext.selectedWidth,
     ]
   )
 

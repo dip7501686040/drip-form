@@ -4,7 +4,18 @@ import { parseUnitedSchema } from '@jdfed/utils'
 import antd from '@jdfed/drip-form-theme-antd'
 import type { DripFormRefType, UiComponents } from '@jdfed/drip-form'
 import type { TypePath, UnitedSchema } from '@jdfed/utils'
+import { widthType } from '@generator/components/LeftSideBar/DragAtom/Item'
 
+export type widthManagerContextType = {
+  selectedWidth: widthType
+  setSelectedWidth: any
+}
+export const WidthManagerContext = React.createContext<widthManagerContextType>(
+  {
+    selectedWidth: { width: 100, label: '100%' },
+    setSelectedWidth: undefined,
+  }
+)
 export type GeneratorContextType = MutableRefObject<DripFormRefType | undefined>
 
 export const GeneratorContext = React.createContext<GeneratorContextType>({

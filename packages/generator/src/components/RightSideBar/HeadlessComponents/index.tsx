@@ -7,10 +7,17 @@
  * @Last Modified time: 2021-12-30 14:56:58
  */
 import { useContext, useMemo } from 'react'
-import { GeneratorContext, DripFormUiComponetsAtom } from '@generator/store'
+import {
+  GeneratorContext,
+  DripFormUiComponetsAtom,
+  WidthManagerContext,
+} from '@generator/store'
 import { useGetCurSchema } from '@generator/hooks'
 import { useRecoilValue } from 'recoil'
-import type { GeneratorContextType } from '@generator/store'
+import type {
+  GeneratorContextType,
+  widthManagerContextType,
+} from '@generator/store'
 import type { UiComponents } from '@jdfed/drip-form'
 
 type UseRightSidebar = () => {
@@ -20,11 +27,13 @@ type UseRightSidebar = () => {
   uiSchema: Record<string, unknown>
   uiComponents: UiComponents
   fieldKey: string | undefined
+  widthManagerContext: widthManagerContextType
 }
 
 const useRightSidebar: UseRightSidebar = () => {
   const uiComponents = useRecoilValue(DripFormUiComponetsAtom)
   const generatorContext = useContext(GeneratorContext)
+  const widthManagerContext = useContext(WidthManagerContext)
   const { selectedFieldKey, dataSchema, uiSchema } = useGetCurSchema()
   const fieldKey = useMemo(
     () => selectedFieldKey?.split('.').pop(),
@@ -38,6 +47,7 @@ const useRightSidebar: UseRightSidebar = () => {
     uiSchema,
     uiComponents,
     fieldKey,
+    widthManagerContext,
   }
 }
 

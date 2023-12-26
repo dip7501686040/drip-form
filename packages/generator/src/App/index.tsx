@@ -1,4 +1,4 @@
-import React, { memo, useRef, forwardRef, useEffect } from 'react'
+import React, { memo, useRef, forwardRef, useEffect, useState } from 'react'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import cx from 'classnames'
 import '../styles/global.css'
@@ -18,6 +18,7 @@ import {
   DripFormUiComponetsAtom,
   sidebarDataAtom,
   optionsAtom,
+  WidthManagerContext,
 } from '@generator/store'
 import '@jdfed/drip-form/dist/index.css'
 import '@jdfed/drip-form-theme-antd/dist/index.css'
@@ -47,7 +48,10 @@ const Generator = forwardRef<GeneratorRef, GeneratorType>(
     const setOptions = useSetRecoilState(optionsAtom)
     const setDripFormUiComonents = useSetRecoilState(DripFormUiComponetsAtom)
     const setSidebarData = useSetRecoilState(sidebarDataAtom)
-
+    const [selectedWidth, setSelectedWidth] = useState({
+      width: 100,
+      label: '100%',
+    })
     // 设置全局配置
     useEffect(() => {
       setOptions((oldOption) => {
@@ -138,18 +142,22 @@ const Generator = forwardRef<GeneratorRef, GeneratorType>(
 
     return (
       <GeneratorContext.Provider value={formRef}>
-        <div className={styles.drip_form_generator}>
-          {(headerConfig?.showHeader ?? true) && <Header />}
-          <div className={cx(styles.body)}>
-            <ControlPage />
-            <DndWrapper>
-              <LeftSideBar />
-              <Viewport schema={schema} removable />
-            </DndWrapper>
-            <RightSideBar />
+        <WidthManagerContext.Provider
+          value={{ selectedWidth, setSelectedWidth }}
+        >
+          <div className={styles.drip_form_generator}>
+            {(headerConfig?.showHeader ?? true) && <Header />}
+            <div className={cx(styles.body)}>
+              <ControlPage />
+              <DndWrapper>
+                <LeftSideBar />
+                <Viewport schema={schema} removable />
+              </DndWrapper>
+              <RightSideBar />
+            </div>
+            <PreviewJSON />
           </div>
-          <PreviewJSON />
-        </div>
+        </WidthManagerContext.Provider>
       </GeneratorContext.Provider>
     )
   }
