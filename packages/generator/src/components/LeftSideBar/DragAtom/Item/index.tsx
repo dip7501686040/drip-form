@@ -4,8 +4,10 @@ import React, {
   CSSProperties,
   useState,
   useContext,
+  useEffect,
+  useRef,
 } from 'react'
-import { useAddField, useGetCurSchema } from '@generator/hooks'
+import { useAddField } from '@generator/hooks'
 import styles from './index.module.css'
 import cx from 'classnames'
 import { LEFTSIDEBARITEM_WH } from '@generator/utils/text'
@@ -13,9 +15,14 @@ import type { DraggableSyntheticListeners } from '@dnd-kit/core'
 import type { UnitedSchemaAtom } from '@generator/fields/types'
 import { Popover } from 'antd'
 import WidthMenu from './WidthMenu'
-import { GeneratorContext, WidthManagerContext } from '@generator/store'
+import {
+  GeneratorContext,
+  WidthManagerContext,
+  selectedAtom,
+} from '@generator/store'
 import { SetType } from '@jdfed/hooks'
 import { Map, setDeepProp } from '@jdfed/utils'
+import { useRecoilState } from 'recoil'
 export type DragAtomProps = {
   icon: string
   unitedSchema: UnitedSchemaAtom
@@ -34,12 +41,20 @@ type ItemType = {
 
 const Item = forwardRef<HTMLElement, ItemType>(
   ({ listeners, customBarStyle, attributes, icon, unitedSchema }, ref) => {
+    function usePrevious(value: any) {
+      const pref = useRef()
+      useEffect(() => {
+        pref.current = value //assign the value of ref to the argument
+      }, [value]) //this code will run when the value of 'value' changes
+      return pref.current //in the end, return the current ref value.
+    }
     //点击添加新的表单项
     const generatorContext = useContext(GeneratorContext)
-    const { selectedFieldKey } = useGetCurSchema()
+    const [selectedKey] = useRecoilState(selectedAtom)
     const onClick = useAddField()
     const [open, setOpen] = useState(false)
-    const { setSelectedWidth } = useContext(WidthManagerContext)
+    const { selectedWidth, setSelectedWidth } = useContext(WidthManagerContext)
+    const prevSelectKey = usePrevious(selectedKey)
 
     const hide = () => {
       setOpen(false)
@@ -51,16 +66,19 @@ const Item = forwardRef<HTMLElement, ItemType>(
     const handleWidthSelect = (width: widthType) => {
       const key = 'containerStyle.width'
       setSelectedWidth(width)
+      if (!selectedKey) {
+        onClick({ unitedSchema })
+      }
       if (
-        selectedFieldKey &&
+        selectedKey &&
         unitedSchema &&
         unitedSchema.ui &&
         unitedSchema.ui.type
       ) {
-        const selectedFieldUiType = selectedFieldKey?.split('_')[0]
+        const selectedFieldUiType = selectedKey.split('_')[0]
         if (selectedFieldUiType === unitedSchema.ui.type) {
           generatorContext.current?.set(
-            selectedFieldKey || '',
+            selectedKey || '',
             'uiSchema' as SetType,
             (draft) => {
               setDeepProp(
@@ -75,6 +93,31 @@ const Item = forwardRef<HTMLElement, ItemType>(
       hide()
     }
 
+    useEffect(() => {
+      if (
+        prevSelectKey === null &&
+        selectedKey &&
+        unitedSchema &&
+        unitedSchema.ui &&
+        unitedSchema.ui.type
+      ) {
+        const selectedFieldUiType = selectedKey.split('_')[0]
+        if (selectedFieldUiType === unitedSchema.ui.type) {
+          const key = 'containerStyle.width'
+          generatorContext.current?.set(
+            selectedKey,
+            'uiSchema' as SetType,
+            (draft) => {
+              setDeepProp(
+                key.split('.').filter((item: string) => !['ui'].includes(item)),
+                draft as Map,
+                selectedWidth.label
+              )
+            }
+          )
+        }
+      }
+    }, [selectedKey])
     return (
       <Popover
         style={{ padding: '0' }}
@@ -86,11 +129,10 @@ const Item = forwardRef<HTMLElement, ItemType>(
         onVisibleChange={handleOpenChange}
       >
         <div
-          id="tes455dip"
           role="button"
           className={cx('leftsidebar-item')}
-          onClick={onClick.bind(null, { unitedSchema })}
           ref={ref}
+          onClick={onClick.bind(null, { unitedSchema })}
           style={{ ...LEFTSIDEBARITEM_WH, ...customBarStyle }}
           {...listeners}
           {...attributes}
