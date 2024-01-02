@@ -32,6 +32,11 @@ export type widthType = {
   width: number
   label: string
 }
+const countryStateCityFields = [
+  'countryStateCity',
+  'countryState',
+  'countryCity',
+]
 
 type ItemType = {
   listeners?: DraggableSyntheticListeners
@@ -118,6 +123,7 @@ const Item = forwardRef<HTMLElement, ItemType>(
         }
       }
     }, [selectedKey])
+
     return (
       <Popover
         style={{ padding: '0' }}
@@ -133,7 +139,12 @@ const Item = forwardRef<HTMLElement, ItemType>(
           className={cx('leftsidebar-item')}
           ref={ref}
           onClick={onClick.bind(null, { unitedSchema })}
-          style={{ ...LEFTSIDEBARITEM_WH, ...customBarStyle }}
+          style={
+            unitedSchema?.ui?.type &&
+            countryStateCityFields.includes(unitedSchema.ui.type)
+              ? { ...LEFTSIDEBARITEM_WH, ...customBarStyle, width: '100%' }
+              : { ...LEFTSIDEBARITEM_WH, ...customBarStyle }
+          }
           {...listeners}
           {...attributes}
         >

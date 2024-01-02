@@ -22,7 +22,11 @@ import { get } from '@jdfed/utils'
 import { useTitle, useContainer, useGlobalOptions } from '@jdfed/hooks'
 import type { CommonContainer, CommonContainerHocType } from './type'
 import './index.styl'
-
+const countryStateCityFields = [
+  'countryStateCity',
+  'countryState',
+  'countryCity',
+]
 const CommonContainerHoc: CommonContainerHocType = (Component, props) => {
   const { showTitleEle = true, showDesAndErr = true } = props || {
     showDesAndErr: true,
@@ -185,15 +189,18 @@ const CommonContainerHoc: CommonContainerHocType = (Component, props) => {
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
-
     return !notRender ? (
       <div
         // form-container需要和packages/generator/src/components/Viewport/DripFormDragHoc/index.module.css中同步修改
-        className={cx('form-container', {
-          'form-container-view': formMode === 'view',
-          'form-container-generator': formMode === 'generator',
-          'form-container-edit': formMode === 'edit',
-        }, (uiProp?.customClassName as string) || '')}
+        className={cx(
+          'form-container',
+          {
+            'form-container-view': formMode === 'view',
+            'form-container-generator': formMode === 'generator',
+            'form-container-edit': formMode === 'edit',
+          },
+          (uiProp?.customClassName as string) || ''
+        )}
         style={{
           ...(['array', 'object'].includes(uiProp.type as string)
             ? (uiProp?.style as CSSProperties)
@@ -209,6 +216,7 @@ const CommonContainerHoc: CommonContainerHocType = (Component, props) => {
         >
           {/*对象容器折叠模式不展示标题，而是在objectContainer中自定义 */}
           {showTitleEle &&
+            !countryStateCityFields.includes(fieldKey.split('_')[0]) &&
             showTitle &&
             (uiProp.type != 'object' ||
               (uiProp.type === 'object' && uiProp.mode !== 'collapse')) && (

@@ -6,6 +6,19 @@ import {
   config as numberConfig,
 } from './NumberField'
 import { select as SelectField, config as selectConfig } from './SelectField'
+import { select as CountryField, config as CountryConfig } from './CountryField'
+import {
+  select as CountryCityField,
+  config as CountryCityConfig,
+} from './CountryCityField'
+import {
+  select as CountryStateField,
+  config as CountryStateConfig,
+} from './CountryStateField'
+import {
+  select as CountryStateCityField,
+  config as CountryStateCityConfig,
+} from './CountryStateCityField'
 import { nullField as NullField, config as nullConfig } from './NullField'
 import {
   switchField as SwitchField,
@@ -54,6 +67,10 @@ const antdTheme: {
   text: TextField,
   number: NumberField,
   select: SelectField,
+  countryStateCity: CountryStateCityField,
+  countryState: CountryStateField,
+  countryCity: CountryCityField,
+  country: CountryField,
   radio: RadioField,
   radioText: RadioTextField,
   null: NullField,
@@ -87,6 +104,10 @@ export const config = {
     'text',
     'number',
     'radio',
+    'countryStateCity',
+    'countryState',
+    'countryCity',
+    'country',
     'select',
     'slider',
     'switch',
@@ -104,6 +125,10 @@ export const config = {
     number: numberConfig,
     radio: radioConfig,
     select: selectConfig,
+    countryStateCity: CountryStateCityConfig,
+    countryState: CountryStateConfig,
+    countryCity: CountryCityConfig,
+    country: CountryConfig,
     slider: sliderConfig,
     switch: switchConfig,
     timePicker: timepickerConfig,
