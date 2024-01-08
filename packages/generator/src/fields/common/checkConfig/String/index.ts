@@ -298,7 +298,56 @@ const dripFormPluginKeywords = {
     ],
   },
 }
-
+export const dateChecking: any = {
+  type: 'object',
+  fieldKey: 'dateChecking',
+  title: 'Date Checking',
+  ui: {
+    type: 'object',
+    mode: 'collapse',
+    '$:dripStyle': true,
+    ghost: true,
+    containerStyle: {
+      padding: 0,
+      marginBottom: 5,
+    },
+  },
+  schema: [],
+}
+export const earlierDateChecking = {
+  type: 'string',
+  fieldKey: 'earlierDateChecking',
+  title: 'Cannot be earlier than date',
+  ui: {
+    type: 'select',
+    style: {
+      width: '100%',
+    },
+    options: [],
+  },
+}
+export const authModeDateChecking = {
+  type: 'string',
+  title: 'Authentication mode',
+  default: 'lt',
+  ui: {
+    type: 'radio',
+    style: {
+      width: '100%',
+    },
+    options: [
+      {
+        label: 'Later than',
+        value: 'lt',
+      },
+      {
+        label: 'Later than or equal to',
+        value: 'lte',
+      },
+    ],
+  },
+  fieldKey: 'authModeDateChecking',
+}
 export default {
   common: {
     ...stringJsonSchema,

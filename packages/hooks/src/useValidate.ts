@@ -9,6 +9,7 @@ import produce from 'immer'
 import { useDebounceFn } from 'ahooks'
 import type Ajv from 'ajv/dist/2019'
 import type { ErrorObject } from 'ajv/dist/2019'
+import _ from 'lodash'
 
 import type { Dispatch } from 'react'
 import type { Action } from '@jdfed/utils'
@@ -22,7 +23,7 @@ type ValidateReturn = {
 }
 
 export type Validate = (param: {
-  schema: Record<string, unknown>
+  schema: Record<string, unknown> | any
   formData: Record<string, unknown>
   ajv: Ajv
   visibleFieldKey?: string[]
@@ -71,6 +72,31 @@ export const validate: Validate = ({
     let pass = false
     // 因为ajv会改动formData数据。而formData是不可变的，我们通过immer生成新的数据
     const newFormData = produce(formData, (draft) => {
+      if (
+        schema &&
+        schema.properties &&
+        schema.properties &&
+        Object.keys(schema.properties).length
+      ) {
+        for (let i in schema.properties) {
+          if (
+            schema.properties[i].dateChecking &&
+            schema.properties[i].dateChecking.earlierDateChecking &&
+            schema.properties[i].dateChecking.authModeDateChecking
+          ) {
+            draft = {
+              ...draft,
+              [i]: {
+                self: formData[i],
+                [schema.properties[i].dateChecking.earlierDateChecking]:
+                  formData[
+                    schema.properties[i].dateChecking.earlierDateChecking
+                  ],
+              },
+            }
+          }
+        }
+      }
       pass = validateFuc(draft)
     })
 
@@ -160,7 +186,6 @@ const useValidate = (delay = 0): ((arg0: Params) => void) => {
         ajv,
         visibleFieldKey,
       })
-
       dispatch({
         type: 'setAjvErr',
         action: {

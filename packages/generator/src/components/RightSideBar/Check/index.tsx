@@ -15,6 +15,11 @@ import {
 } from '@jdfed/utils'
 import DripForm from '@jdfed/drip-form'
 import commonSchema from '../../../fields/common/checkConfig/Common'
+import {
+  authModeDateChecking,
+  dateChecking,
+  earlierDateChecking,
+} from '../../../fields/common/checkConfig/String'
 import typeMap from './type'
 import useRightSidebar from '../HeadlessComponents'
 import produce from 'immer'
@@ -28,6 +33,27 @@ const CheckConfig = (): JSX.Element => {
     // uiSchema,
     uiComponents,
   } = useRightSidebar()
+  const viewportFormData = generatorContext.current?.get('')
+  // set other date fields as option of earlier date field
+  const earlierDateFieldOptions = useMemo(() => {
+    const options = []
+    if (viewportFormData?.dataSchema?.properties) {
+      const viewportDateFields = viewportFormData.dataSchema.properties
+      for (let field in viewportDateFields) {
+        if (
+          field.split('_')[0] === 'datePicker' &&
+          field !== selectedFieldKey &&
+          selectedFieldKey?.split('_')[0] === 'datePicker'
+        ) {
+          options.push({
+            label: viewportDateFields[field].title,
+            value: field,
+          })
+        }
+      }
+    }
+    return options
+  }, [viewportFormData, selectedFieldKey])
   // 业务关键字(包含的关键字被转换为formData.bussiness)
   const businessKeywords = useMemo(() => new Set(), [])
   // 通用关键字(包含的关键字被转换为formData.common)
@@ -121,9 +147,115 @@ const CheckConfig = (): JSX.Element => {
     }, [])
   }, [commonErrTipSchema, vcontrol])
 
+  // 当前选中表单的父级fieldKey（相对formData）
+  const parentKey = useMemo(() => {
+    if (selectedFieldKey) {
+      const selectedFieldKeyMap = selectedFieldKey.split('.')
+      selectedFieldKeyMap.pop()
+      // 根目录直接为'',嵌套获取父级key
+      return selectedFieldKey.split('.').length === 1
+        ? ''
+        : selectedFieldKeyMap.join('.')
+    }
+  }, [selectedFieldKey])
+
+  // viewport dataSchema配置转换成校验配置的数据
+  const formData: any = useMemo(() => {
+    let formData: any = {}
+    // 遍历dataSchema配置的校验关键字并输出到formData
+    Object.entries(dataSchema).map(
+      ([key, value]: [key: string, value: any]) => {
+        // TODO @jiangxiaowei 针对嵌套做适配
+        // TODO @jiangxiaowei 支持自定义转换
+        if (['validateTime', 'showError', 'requiredMode'].includes(key)) {
+          setDeepProp(key.split('.'), formData, value)
+        } else if (key !== 'errorMessage') {
+          if (businessKeywords.has(key) && key === 'dateChecking' && value) {
+            if (!Object(value).hasOwnProperty('authModeDateChecking')) {
+              value = { ...value, authModeDateChecking: 'lt' }
+            }
+            setDeepProp(['business', key], formData, value)
+            if (
+              (!Object(formData).hasOwnProperty('errorMessage') ||
+                !Object(formData.errorMessage).hasOwnProperty('dateChecking') ||
+                !formData.errorMessage.dateChecking) &&
+              viewportFormData?.dataSchema?.properties
+            ) {
+              setDeepProp(
+                ['errorMessage', 'dateChecking'],
+                formData,
+                `The selected date must not precede the '${
+                  viewportFormData.dataSchema.properties[
+                    value.earlierDateChecking
+                  ].title
+                }'.`
+              )
+            }
+          } else {
+            setDeepProp(
+              [businessKeywords.has(key) ? 'business' : 'common', key],
+              formData,
+              value
+            )
+          }
+        } else {
+          setDeepProp(['errorMessage'], formData, value)
+        }
+      }
+    )
+    // 设置required
+    if (
+      generatorContext.current?.get &&
+      parentKey !== undefined &&
+      selectedFieldKey
+    ) {
+      const required =
+        (generatorContext.current?.get(parentKey).dataSchema
+          .required as Array<string>) || []
+      let requiredMsg = '必填'
+      try {
+        requiredMsg =
+          generatorContext.current?.get(parentKey).dataSchema?.errorMessage
+            ?.required[selectedFieldKey]
+      } catch (error) {
+        //do nothing
+      }
+      // 判断当前选中的表单是否必填
+      if (required.includes(selectedFieldKey.split('.').pop() as string)) {
+        formData = produce(formData, (draft: Map) => {
+          setDeepProp(['common', 'required'], draft, true)
+          setDeepProp(['errorMessage', 'required'], draft, requiredMsg)
+        })
+      }
+    }
+    return formData
+  }, [
+    businessKeywords,
+    dataSchema,
+    generatorContext,
+    parentKey,
+    selectedFieldKey,
+  ])
+
   // 当前表单的业务校验配置
   const bussinessSchema = useMemo(() => {
+    if (formData?.business?.dateChecking?.earlierDateChecking) {
+      dateChecking.schema = [earlierDateChecking, authModeDateChecking]
+    } else {
+      dateChecking.schema = [earlierDateChecking]
+    }
+    dateChecking.schema = dateChecking.schema.map((item: any) => {
+      if (item.fieldKey === 'earlierDateChecking') {
+        item.ui.options = earlierDateFieldOptions
+      }
+      return item
+    })
     const business = keywordsMap.business
+    if (selectedFieldKey?.split('_')[0] !== 'datePicker') {
+      delete business.dateChecking
+    } else {
+      business.dateChecking = { ...dateChecking }
+    }
     Object.keys(business).map((item) => {
       if (!businessKeywords.has(item)) {
         businessKeywords.add(item)
@@ -147,7 +279,15 @@ const CheckConfig = (): JSX.Element => {
       injectVcontrol(business[cur])
       return prev.concat(business[cur] as unknown as ConcatArray<never>)
     }, [])
-  }, [businessErrTipSchema, businessKeywords, keywordsMap.business, vcontrol])
+  }, [
+    businessErrTipSchema,
+    businessKeywords,
+    keywordsMap.business,
+    vcontrol,
+    selectedFieldKey,
+    earlierDateFieldOptions,
+    formData,
+  ])
 
   // 校验配置schema
   const unitedSchema = useMemo<UnitedSchema>(() => {
@@ -327,76 +467,13 @@ const CheckConfig = (): JSX.Element => {
     return typeMap
   }, [unitedSchema])
 
-  // 当前选中表单的父级fieldKey（相对formData）
-  const parentKey = useMemo(() => {
-    if (selectedFieldKey) {
-      const selectedFieldKeyMap = selectedFieldKey.split('.')
-      selectedFieldKeyMap.pop()
-      // 根目录直接为'',嵌套获取父级key
-      return selectedFieldKey.split('.').length === 1
-        ? ''
-        : selectedFieldKeyMap.join('.')
-    }
-  }, [selectedFieldKey])
-
-  // viewport dataSchema配置转换成校验配置的数据
-  const formData = useMemo(() => {
-    let formData = {}
-    // 遍历dataSchema配置的校验关键字并输出到formData
-    Object.entries(dataSchema).map(([key, value]) => {
-      // TODO @jiangxiaowei 针对嵌套做适配
-      // TODO @jiangxiaowei 支持自定义转换
-      if (['validateTime', 'showError', 'requiredMode'].includes(key)) {
-        setDeepProp(key.split('.'), formData, value)
-      } else if (key !== 'errorMessage') {
-        setDeepProp(
-          [businessKeywords.has(key) ? 'business' : 'common', key],
-          formData,
-          value
-        )
-      } else {
-        setDeepProp(['errorMessage'], formData, value)
-      }
-    })
-    // 设置required
-    if (
-      generatorContext.current?.get &&
-      parentKey !== undefined &&
-      selectedFieldKey
-    ) {
-      const required =
-        (generatorContext.current?.get(parentKey).dataSchema
-          .required as Array<string>) || []
-      let requiredMsg = '必填'
-      try {
-        requiredMsg =
-          generatorContext.current?.get(parentKey).dataSchema?.errorMessage
-            ?.required[selectedFieldKey]
-      } catch (error) {
-        //do nothing
-      }
-      // 判断当前选中的表单是否必填
-      if (required.includes(selectedFieldKey.split('.').pop() as string)) {
-        formData = produce(formData, (draft: Map) => {
-          setDeepProp(['common', 'required'], draft, true)
-          setDeepProp(['errorMessage', 'required'], draft, requiredMsg)
-        })
-      }
-    }
-    return formData
-  }, [
-    businessKeywords,
-    dataSchema,
-    generatorContext,
-    parentKey,
-    selectedFieldKey,
-  ])
-
   // 校验表单联动（校验配置改动实时更新到viewport的dataSchema中）
   const controlFn = useCallback(
     ({ changeKey, get }) => {
       // 变化的表单数据
+
       const data = get(changeKey).data
+
       if (
         !selectedFieldKey &&
         ['validateTime', 'showError', 'requiredMode'].includes(changeKey)
@@ -420,13 +497,84 @@ const CheckConfig = (): JSX.Element => {
         if (key === 'viewMode') return
         // 如果改变的不是对象的必填选项
         if (key.split('.').pop() !== 'required') {
-          generatorContext.current?.set(
-            selectedFieldKey,
-            'dataSchema',
-            (draft: unknown) => {
-              setDeepProp(key.split('.'), draft as Map, data, typePath)
+          if (
+            changeKey === 'business.dateChecking.earlierDateChecking' &&
+            viewportFormData?.dataSchema?.properties &&
+            viewportFormData.dataSchema.properties[selectedFieldKey]
+          ) {
+            let temp = { earlierDateChecking: data, authModeDateChecking: 'lt' }
+            if (
+              viewportFormData.dataSchema.properties[selectedFieldKey]
+                .dateChecking &&
+              viewportFormData.dataSchema.properties[selectedFieldKey]
+                .dateChecking.authModeDateChecking
+            ) {
+              temp = {
+                ...temp,
+                authModeDateChecking:
+                  viewportFormData.dataSchema.properties[selectedFieldKey]
+                    .dateChecking.authModeDateChecking,
+              }
             }
-          )
+            generatorContext.current?.set(
+              selectedFieldKey,
+              'dataSchema',
+              (draft: unknown) => {
+                setDeepProp(['dateChecking'], draft as Map, temp, typePath)
+              }
+            )
+            if (
+              !viewportFormData.dataSchema.properties[selectedFieldKey]
+                .errorMessage
+            ) {
+              const error = {
+                dateChecking: viewportFormData.dataSchema.properties
+                  ? `The selected date must not precede the '${
+                      viewportFormData.dataSchema.properties[
+                        temp.earlierDateChecking
+                      ].title
+                    }'.`
+                  : '',
+              }
+              generatorContext.current?.set(
+                selectedFieldKey,
+                'dataSchema',
+                (draft: unknown) => {
+                  setDeepProp(['errorMessage'], draft as Map, error, typePath)
+                }
+              )
+            } else if (
+              !viewportFormData.dataSchema.properties[selectedFieldKey]
+                .errorMessage.dateChecking
+            ) {
+              const error = {
+                ...viewportFormData.dataSchema.properties[selectedFieldKey]
+                  .errorMessage,
+                dateChecking: viewportFormData.dataSchema.properties
+                  ? `The selected date must not precede the '${
+                      viewportFormData.dataSchema.properties[
+                        temp.earlierDateChecking
+                      ].title
+                    }'.`
+                  : '',
+              }
+              generatorContext.current?.set(
+                selectedFieldKey,
+                'dataSchema',
+                (draft: unknown) => {
+                  setDeepProp(['errorMessage'], draft as Map, error, typePath)
+                }
+              )
+            }
+          } else {
+            generatorContext.current?.set(
+              selectedFieldKey,
+              'dataSchema',
+              (draft: unknown) => {
+                setDeepProp(key.split('.'), draft as Map, data, typePath)
+              }
+            )
+          }
         } else {
           const oldRequired =
             generatorContext.current?.get(parentKey).dataSchema.required
